@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>大厂计划打卡</title>
+<style>
+  :root{
+    --bg:#f3f4f7; --card:#ffffff; --ink:#1c2330; --muted:#7a8496; --line:#e6e8ee;
+    --accent:#4056e0; --accent-soft:#eceffe; --flame:#f0742a; --ok:#1e9e63; --warn:#e8930c; --err:#d64545;
+    --shadow:0 1px 3px rgba(20,25,40,.08), 0 4px 14px rgba(20,25,40,.05);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#12151c; --card:#1a1f2a; --ink:#e8ebf2; --muted:#8b93a5; --line:#28303f;
+      --accent:#6b80ff; --accent-soft:#232b46; --flame:#ff8a3d; --ok:#3ecf8e; --warn:#ffb020; --err:#ff6b6b;
+      --shadow:0 1px 3px rgba(0,0,0,.4);
+    }
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  body{margin:0; background:var(--bg); color:var(--ink);
+    font:15px/1.6 -apple-system,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;}
+  main{max-width:640px; margin:0 auto; padding:12px 14px 90px}
+  header{position:sticky; top:0; z-index:20; background:color-mix(in srgb, var(--bg) 82%, transparent);
+    backdrop-filter:blur(10px); border-bottom:1px solid var(--line)}
+  .hbar{max-width:640px; margin:0 auto; padding:10px 14px; display:flex; align-items:center; gap:8px}
+  .hbar h1{font-size:17px; margin:0; flex:1; letter-spacing:.5px}
+  .chip{font-size:12px; padding:3px 10px; border-radius:99px; border:1px solid var(--line);
+    background:var(--card); white-space:nowrap; cursor:default}
+  .chip.ok{color:var(--ok); border-color:color-mix(in srgb,var(--ok) 40%, var(--line))}
+  .chip.warn{color:var(--warn); border-color:color-mix(in srgb,var(--warn) 40%, var(--line))}
+  .chip.err{color:var(--err); border-color:color-mix(in srgb,var(--err) 40%, var(--line))}
+  .chip.busy{color:var(--accent)}
+  .chip.flame{color:var(--flame); font-weight:600}
+  .chip[data-act]{cursor:pointer}
+  .gear{border:1px solid var(--line); background:var(--card); border-radius:10px; width:32px; height:28px;
+    font-size:15px; color:var(--ink); cursor:pointer}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:16px;
+    padding:16px; margin-top:14px; box-shadow:var(--shadow)}
+  .sec-title{font-size:13px; color:var(--muted); letter-spacing:1px; margin:0 0 10px; font-weight:600}
+  /* 今日打卡 */
+  .datenav{display:flex; align-items:center; gap:6px; margin-bottom:12px}
+  .datenav .dlabel{flex:1; text-align:center; font-weight:600; font-size:15px}
+  .navbtn{border:1px solid var(--line); background:transparent; color:var(--ink); border-radius:9px;
+    width:34px; height:30px; font-size:15px; cursor:pointer}
+  .navbtn:disabled{opacity:.35; cursor:default}
+  .todaybtn{border:1px solid var(--line); background:transparent; color:var(--muted); border-radius:9px;
+    height:30px; padding:0 10px; font-size:13px; cursor:pointer}
+  .tracks{display:flex; gap:8px}
+  .track{flex:1; border:1.5px solid var(--line); background:transparent; color:var(--muted);
+    border-radius:12px; padding:10px 2px; font-size:13.5px; font-weight:600; cursor:pointer; transition:.15s}
+  .track.on{background:var(--accent); border-color:var(--accent); color:#fff}
+  .track small{display:block; font-weight:400; font-size:11px; opacity:.8}
+  .row{display:flex; gap:10px; align-items:center; margin-top:12px}
+  .row label{font-size:13.5px; color:var(--muted); white-space:nowrap}
+  input[type=number],input[type=text],input[type=date],input[type=password]{
+    background:var(--bg); border:1px solid var(--line); color:var(--ink); border-radius:10px;
+    padding:8px 10px; font-size:14px; width:100%}
+  input:focus{outline:2px solid var(--accent-soft); border-color:var(--accent)}
+  .hrs{width:90px; text-align:center}
+  .pendnote{font-size:12px; color:var(--warn); margin-top:8px; display:none}
+  /* 周小时 */
+  .wsum{font-size:14px; color:var(--muted)}
+  .wsum b{font-size:22px; color:var(--ink); font-family:ui-monospace,monospace}
+  .bar{height:10px; background:var(--bg); border-radius:99px; margin:10px 0 4px; position:relative; overflow:visible}
+  .bar .fill{height:100%; border-radius:99px; background:linear-gradient(90deg,var(--accent),#7a8cff); width:0%; transition:.3s}
+  .bar .mark{position:absolute; left:50%; top:-3px; width:2px; height:16px; background:var(--muted); opacity:.5; border-radius:2px}
+  .barnote{font-size:11.5px; color:var(--muted)}
+  .trend{display:flex; gap:10px; align-items:flex-end; height:92px; margin-top:14px}
+  .tcol{flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; height:100%; justify-content:flex-end}
+  .tcol .tb{width:100%; max-width:46px; background:var(--accent-soft); border:1px solid color-mix(in srgb,var(--accent) 30%, transparent);
+    border-radius:8px 8px 4px 4px; min-height:3px}
+  .tcol.cur .tb{background:var(--accent)}
+  .tcol .tv{font-size:11px; color:var(--muted); font-family:ui-monospace,monospace}
+  .tcol .tl{font-size:11px; color:var(--muted)}
+  /* 计划 */
+  .phead{display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; margin-bottom:6px}
+  .phead .pno{font-weight:700; font-size:16px}
+  .phead .pblk{font-size:12px; color:var(--accent); background:var(--accent-soft); padding:2px 9px; border-radius:99px}
+  .ptitle{font-weight:600; margin-bottom:8px}
+  .ptask{display:flex; gap:10px; align-items:flex-start; padding:8px 2px; border-bottom:1px dashed var(--line); cursor:pointer}
+  .ptask:last-child{border-bottom:none}
+  .ptask input{width:19px; height:19px; margin-top:2px; accent-color:var(--accent); flex:none}
+  .ptask span{font-size:14px}
+  .ptask.done span{color:var(--muted); text-decoration:line-through}
+  .pnav{display:flex; align-items:center; gap:8px; margin-top:12px}
+  .pnav .pstate{flex:1; text-align:center; font-size:13px; color:var(--muted)}
+  /* 里程碑 */
+  .mets{display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap}
+  .met{flex:1; min-width:96px; background:var(--bg); border:1px solid var(--line); border-radius:12px; padding:8px 10px}
+  .met label{font-size:11.5px; color:var(--muted); display:block}
+  .met input{margin-top:3px; text-align:center; font-family:ui-monospace,monospace}
+  .mcard{border:1px solid var(--line); border-left:4px solid var(--line); border-radius:12px;
+    padding:12px; margin-top:10px}
+  .mcard.done{border-left-color:var(--ok)}
+  .mhead{display:flex; align-items:center; gap:8px}
+  .mhead .mname{flex:1; font-weight:600}
+  .mdue{font-size:12px; color:var(--muted); margin:2px 0 8px}
+  .mauto{margin:0 0 8px; padding-left:18px}
+  .mauto li{font-size:13px; color:var(--muted); margin:2px 0}
+  .mauto li.hit{color:var(--ok)}
+  .mdone{border:1.5px solid var(--line); background:transparent; color:var(--muted); border-radius:9px;
+    padding:5px 14px; font-size:13px; cursor:pointer}
+  .mdone.on{background:var(--ok); border-color:var(--ok); color:#fff}
+  .mdate{font-size:12px; color:var(--ok); margin-left:8px}
+  /* 弹窗 */
+  .modal{position:fixed; inset:0; z-index:50; display:flex; align-items:flex-end; justify-content:center;
+    background:rgba(10,12,20,.5)}
+  @media(min-width:560px){.modal{align-items:center}}
+  .sheet{background:var(--card); width:100%; max-width:480px; border-radius:18px 18px 0 0; padding:20px;
+    max-height:92vh; overflow:auto}
+  @media(min-width:560px){.sheet{border-radius:18px}}
+  .sheet h2{margin:0 0 4px; font-size:17px}
+  .sheet .hint{font-size:12.5px; color:var(--muted); margin:0 0 14px}
+  .frow{margin-bottom:12px}
+  .frow label{font-size:13px; color:var(--muted); display:block; margin-bottom:4px}
+  .fstatus{font-size:13px; min-height:20px; margin:6px 0 10px; white-space:pre-wrap}
+  .fstatus.ok{color:var(--ok)} .fstatus.err{color:var(--err)}
+  .btnrow{display:flex; gap:10px}
+  .btn{flex:1; border:none; border-radius:12px; padding:12px; font-size:15px; font-weight:600; cursor:pointer}
+  .btn.primary{background:var(--accent); color:#fff}
+  .btn.ghost{background:transparent; border:1px solid var(--line); color:var(--muted); flex:0 0 auto; padding:12px 16px}
+  .hidden{display:none!important}
+  .empty{color:var(--muted); font-size:13.5px}
+</style>
+</head>
+<body>
+<header><div class="hbar">
+  <h1>大厂计划打卡</h1>
+  <span id="streakChip" class="chip flame">🔥 0 天</span>
+  <span id="syncChip" class="chip" data-act="1">未配置</span>
+  <button id="gearBtn" class="gear" title="设置">⚙</button>
+</div></header>
+
+<main>
+  <section class="card" id="sec-today">
+    <p class="sec-title">今日打卡</p>
+    <div class="datenav">
+      <button class="navbtn" id="dPrev">‹</button>
+      <span class="dlabel" id="dLabel">—</span>
+      <button class="navbtn" id="dNext">›</button>
+      <button class="todaybtn" id="dToday">回到今天</button>
+    </div>
+    <div class="tracks">
+      <button class="track" data-k="algo">算法 30′<small>每天雷打不动</small></button>
+      <button class="track" data-k="bugu">八股专题<small>本周攻一个</small></button>
+      <button class="track" data-k="project">项目重塑<small>素材/改造</small></button>
+    </div>
+    <div class="row"><label>本日学习</label>
+      <input type="number" id="hours" class="hrs" min="0" max="16" step="0.5" placeholder="0"><label>小时</label>
+      <input type="text" id="note" placeholder="一句话备注（学了啥/卡点）" style="flex:1">
+    </div>
+    <p class="pendnote" id="pendNote">⚠ 有改动待同步，联网后自动重传</p>
+  </section>
+
+  <section class="card" id="sec-week">
+    <p class="sec-title">本周学习时长</p>
+    <p class="wsum">本周合计 <b id="weekSum">0</b> 小时 · 目标 5–10h</p>
+    <div class="bar"><div class="fill" id="weekFill"></div><div class="mark"></div></div>
+    <p class="barnote">刻度线为 5h（最低目标），进度条满格为 10h</p>
+    <div class="trend" id="trend"></div>
+  </section>
+
+  <section class="card" id="sec-plan">
+    <p class="sec-title">备考计划 · 32 周</p>
+    <div class="phead"><span class="pno" id="pNo">—</span><span class="pblk" id="pBlk">—</span></div>
+    <p class="ptitle" id="pTitle">—</p>
+    <div id="pTasks"></div>
+    <div class="pnav">
+      <button class="navbtn" id="wPrev">‹</button>
+      <span class="pstate" id="pState">—</span>
+      <button class="navbtn" id="wNext">›</button>
+      <button class="todaybtn" id="wNow">本周</button>
+    </div>
+    <div class="bar" style="margin-top:14px"><div class="fill" id="planFill"></div></div>
+    <p class="barnote" id="planNote">全计划完成率 0%</p>
+  </section>
+
+  <section class="card" id="sec-miles">
+    <p class="sec-title">量化指标（手动更新）</p>
+    <div class="mets">
+      <div class="met"><label>算法题数</label><input type="number" id="mAlgo" min="0" value="0"></div>
+      <div class="met"><label>博客篇数</label><input type="number" id="mBlog" min="0" value="0"></div>
+      <div class="met"><label>公司改造项</label><input type="number" id="mRef" min="0" value="0"></div>
+    </div>
+    <p class="sec-title">里程碑</p>
+    <div id="mList"></div>
+  </section>
+</main>
+
+<div class="modal hidden" id="modal">
+  <div class="sheet">
+    <h2>⚙ 连接数据仓库</h2>
+    <p class="hint">打卡数据以 JSON 文件存在你的 GitHub 私有仓库中，每次打卡自动产生一条 commit。token 只保存在本机浏览器，不会进入仓库。</p>
+    <div class="frow"><label>数据仓库（私有），如 username/checkin-data</label>
+      <input type="text" id="sRepo" placeholder="用户名/仓库名 或粘贴仓库网址"></div>
+    <div class="frow"><label>分支</label><input type="text" id="sBranch" value="main"></div>
+    <div class="frow"><label>数据文件路径</label><input type="text" id="sPath" value="data/checkin.json"></div>
+    <div class="frow"><label>Fine-grained PAT（仅需该仓库 Contents: Read and write）</label>
+      <input type="password" id="sToken" placeholder="github_pat_… / ghp_…"></div>
+    <div class="frow"><label>计划开始日（32 周备考表从此日起算）</label>
+      <input type="date" id="sStart"></div>
+    <p class="fstatus" id="sStatus"></p>
+    <div class="btnrow">
+      <button class="btn ghost" id="sClear">清除本机配置</button>
+      <button class="btn primary" id="sSave">测试连接并保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+/* ================= 常量：32 周备考计划 ================= */
+const PLAN=[
+ {blk:'基础篇 · JUC（弱项重点）',wks:[
+  ['线程池（上）',['线程池核心参数与执行流程','4 种拒绝策略与适用场景','为什么规范禁用 Executors 建池']],
+  ['线程池（下）＋ ThreadLocal',['线程数估算（CPU/IO 密集型）','shutdown 与 shutdownNow 区别','ThreadLocal 原理与内存泄漏']],
+  ['synchronized 与锁升级',['对象头与 Mark Word','偏向锁→轻量级→重量级升级','monitor 与 wait/notify']],
+  ['JMM 与 volatile',['happens-before 八大规则','volatile 可见性与禁止重排','指令重排与内存屏障']],
+  ['AQS（上）',['state 与 CLH 等待队列','独占模式 acquire/release 源码','加锁失败后的入队与挂起']],
+  ['AQS（下）',['共享模式与传播机制','Condition 等待队列','ReentrantLock 公平/非公平']],
+  ['ConcurrentHashMap',['JDK7 分段锁→JDK8 CAS+synchronized','size 与并发扩容','HashMap 相关八股一并过']],
+  ['JUC 收尾与回炉',['CountDownLatch/Semaphore/CyclicBarrier','写博客 ≥1 篇','JUC 全专题口述复述一遍']] ]},
+ {blk:'基础篇 · JVM 与 MySQL',wks:[
+  ['JVM 内存与类加载',['运行时数据区','类加载过程与双亲委派','对象创建与逃逸分析']],
+  ['GC 与调优',['GC 算法与 CMS/G1/ZGC','GC 日志怎么读','OOM / CPU 飙高排查思路']],
+  ['MySQL 索引',['B+ 树与页结构','回表/覆盖索引/索引下推','EXPLAIN 与慢 SQL 优化']],
+  ['MySQL 事务与锁',['隔离级别与 MVCC 原理','间隙锁与临键锁','主从复制与延迟应对']] ]},
+ {blk:'中间件与分布式（弱项重点）',wks:[
+  ['Redis 数据结构',['SDS/跳表/压缩列表底层','常用命令时间复杂度','渐进式 rehash']],
+  ['Redis 高可用',['RDB/AOF 与混合持久化','主从/哨兵/Cluster','单线程为什么快']],
+  ['缓存实战',['穿透/击穿/雪崩与对策','缓存一致性方案','分布式锁 setnx→Redisson']],
+  ['MQ 架构',['RocketMQ/Kafka 选型对比','架构与消息模型','顺序写与零拷贝为什么快']],
+  ['MQ 可靠性',['消息不丢：三环节配置','重复消费与幂等设计','顺序消息与堆积处理']],
+  ['MQ 场景',['异步/削峰/解耦落地案例','事务消息原理','写博客 ≥1 篇']],
+  ['微服务基础',['Nacos 注册与配置中心原理','网关职责与选型','负载均衡策略']],
+  ['服务治理',['Sentinel 熔断限流原理','Dubbo 一次 RPC 完整流程','超时/重试与幂等设计']],
+  ['微服务进阶',['服务拆分原则与边界','链路追踪与可观测性','灰度发布思路']],
+  ['分布式事务',['本地消息表与事务消息','TCC 与 SAGA 模式','分布式 ID 方案对比']],
+  ['分布式理论',['CAP/BASE 与业务取舍','一致性哈希','写博客 ≥1 篇']],
+  ['系统设计',['秒杀系统设计','短链系统设计','红包/Feed 流二选一']] ]},
+ {blk:'冲刺期',wks:[
+  ['冲刺 · 模拟（一）',['mock 面试 ×2（可用 AI 当面试官）','错题题库重刷','JUC 专题口述复述']],
+  ['冲刺 · 模拟（二）',['mock 面试 ×2','Redis/MQ 口述复述','简历迭代一版']],
+  ['冲刺 · 模拟（三）',['mock 面试 ×2','系统设计专项练习','项目叙事打磨']],
+  ['冲刺 · 模拟（四）',['mock 面试 ×2','薄弱专题回炉','简历定稿']],
+  ['冲刺 · 投递（一）',['练手层公司约面','每场面试当天复盘入题库','复盘题复练']],
+  ['冲刺 · 投递（二）',['保底层公司投递','复盘题复练','八股查漏']],
+  ['冲刺 · 投递（三）',['目标层公司集中投','睡眠与手感状态调优','谈薪准备（offer 互抬）']],
+  ['冲刺 · 收尾',['目标层面试冲刺','复盘题清零','拿到 offer：涨幅 ≥30% 达成']] ]}
+];
+const FLAT=[]; PLAN.forEach(b=>b.wks.forEach(w=>FLAT.push({blk:b.blk,title:w[0],tasks:w[1]})));
+const MILES=[
+ {id:'M1',name:'M1 · JUC 专题完成',due:'计划第 2 月末（W1–W8）',
+  auto:d=>[[ratioTxt(d,0,8),'JUC 周任务完成率'],[(d.metrics.blogs||0)+'/4','篇博客（目标≥4）']]},
+ {id:'M2',name:'M2 · 备考完成＋简历 v1',due:'计划第 6 月末（W1–W24）',
+  auto:d=>[[ratioTxt(d,0,24),'全部专题周任务完成率'],[(d.metrics.algoProblems||0)+'/150','算法题'],[(d.metrics.refactors||0)+'/2','公司改造落地项']]},
+ {id:'M3',name:'M3 · 中厂 Offer 落地',due:'计划第 8–10 月 · 涨幅目标 ≥30%',
+  auto:()=>[['','offer 到手后手动标记并记日期']]},
+ {id:'M4',name:'M4 · 中厂攒齐 4 类素材',due:'计划第 20 月末',
+  auto:()=>[['','量化性能优化 / 故障排查 / 拆分重构 / 新中间件，四项齐备后标记']]},
+ {id:'M5',name:'M5 · 内推投大厂',due:'计划第 22–32 月',
+  auto:()=>[['','以中厂高级工程师身份内推，目标一线大厂 P6+ 或次一线']]}
+];
+function ratioTxt(d,from,to){
+  let all=0,hit=0;
+  for(let i=from;i<to;i++){
+    const rec=(d.weeks||{})['W'+(i+1)];
+    const n=FLAT[i].tasks.length;
+    for(let j=0;j<n;j++){ all++; if(rec&&rec.tasks&&rec.tasks[j]) hit++; }
+  }
+  return all? Math.round(hit/all*100)+'%':'0%';
+}
+/* ================= 工具 ================= */
+const $=s=>document.querySelector(s);
+const pad=n=>String(n).padStart(2,'0');
+const fmt=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const parse=s=>{const[a,b,c]=s.split('-').map(Number);return new Date(a,b-1,c)};
+const todayStr=()=>fmt(new Date());
+function addDays(s,n){const d=parse(s);d.setDate(d.getDate()+n);return fmt(d)}
+function mondayOf(s){const d=parse(s);const w=(d.getDay()+6)%7;d.setDate(d.getDate()-w);return fmt(d)}
+const WK='日一二三四五六';
+const dLabelOf=s=>{const d=parse(s);return (d.getMonth()+1)+'月'+d.getDate()+'日 · 周'+WK[d.getDay()]};
+function b64u(b64){const bin=atob(b64.replace(/\s+/g,''));const u=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return new TextDecoder().decode(u)}
+function u8b64(s){const u=new TextEncoder().encode(s);let bin='';
+  u.forEach(c=>bin+=String.fromCharCode(c));return btoa(bin)}
+const normRepo=r=>(r||'').trim().replace(/^https?:\/\/github\.com\//i,'').replace(/\.git\/?$/i,'');
+
+/* ================= 状态 ================= */
+const SKEY='dcp_settings_v1', PKEY='dcp_pending_v1';
+let settings=null, data=null, sha=null, errMsg='';
+let curDate=todayStr(), viewWeek=null;
+let syncState='unconfig';           // unconfig|busy|synced|pending|error
+let saveTimer=null, retrying=false, lastSync=null;
+
+function defaultData(ps){return{
+  days:{},
+  metrics:{algoProblems:0,blogs:0,refactors:0},
+  weeks:{},
+  milestones:{M1:{done:false,date:null},M2:{done:false,date:null},M3:{done:false,date:null},
+              M4:{done:false,date:null},M5:{done:false,date:null}},
+  planStart:ps||todayStr()}}
+function ensureDay(d){ if(!data.days[d]) data.days[d]={algo:false,bugu:false,project:false,hours:null,note:''};
+  return data.days[d] }
+const dayActive=d=>{const r=data.days[d];return !!(r&&(r.algo||r.bugu||r.project))};
+
+/* ================= GitHub API ================= */
+const apiUrl=()=>'https://api.github.com/repos/'+settings.repo+'/contents/'
+  +settings.path.split('/').map(encodeURIComponent).join('/');
+const ghHeaders=()=>({'Authorization':'Bearer '+settings.token,
+  'Accept':'application/vnd.github+json','Content-Type':'application/json'});
+
+async function loadData(){
+  if(!settings)return;
+  setSync('busy');
+  try{
+    const r=await fetch(apiUrl()+'?ref='+encodeURIComponent(settings.branch),{headers:ghHeaders()});
+    if(r.status===404){ data=defaultData(settings.planStart); await doSave(); renderAll(); return }
+    if(r.status===401||r.status===403){ errMsg='token 无效或权限不足（需要数据仓库 Contents: Read and write）';
+      setSync('error'); openSettings(); return }
+    if(!r.ok){ throw new Error('GitHub API '+r.status) }
+    const j=await r.json(); sha=j.sha;
+    data=JSON.parse(b64u(j.content));
+    if(!data.planStart) data.planStart=settings.planStart;
+    const pend=localStorage.getItem(PKEY);
+    if(pend){ try{ mergePending(JSON.parse(pend)) }catch(e){} localStorage.removeItem(PKEY); renderAll(); scheduleSave() }
+    else { setSync('synced'); renderAll() }
+  }catch(e){ errMsg='加载失败：'+e.message; setSync('error'); renderAll() }
+}
+function mergePending(p){
+  if(!data)return;
+  Object.assign(data.days,p.days||{});
+  Object.assign(data.metrics,p.metrics||{});
+  data.weeks=Object.assign(data.weeks||{},p.weeks||{});
+  Object.assign(data.milestones,p.milestones||{});
+}
+function scheduleSave(){ setSync('pending'); clearTimeout(saveTimer); saveTimer=setTimeout(doSave,1200) }
+async function doSave(){
+  if(!settings||!data)return;
+  setSync('busy');
+  localStorage.setItem(PKEY,JSON.stringify(data));
+  try{
+    const body={message:'checkin: '+todayStr(),content:u8b64(JSON.stringify(data,null,2)),branch:settings.branch};
+    if(sha)body.sha=sha;
+    const r=await fetch(apiUrl(),{method:'PUT',headers:ghHeaders(),body:JSON.stringify(body)});
+    if(r.status===409&&!retrying){ retrying=true; await loadData(); retrying=false; return }
+    if(r.status===401||r.status===403){ errMsg='保存被拒（401/403）：token 失效或权限不足'; setSync('error'); return }
+    if(!r.ok){ throw new Error('GitHub API '+r.status) }
+    const j=await r.json(); sha=j.content.sha;
+    localStorage.removeItem(PKEY); lastSync=new Date(); setSync('synced');
+  }catch(e){ errMsg='同步失败：'+e.message+'（改动已在本机暂存）'; setSync('error') }
+}
+
+/* ================= 渲染 ================= */
+function setSync(st){ syncState=st; renderChip() }
+function renderChip(){
+  const c=$('#syncChip'); c.classList.remove('ok','warn','err','busy');
+  const s=$('#streakChip');
+  s.textContent='🔥 '+streak()+' 天';
+  if(syncState==='unconfig'){c.textContent='未配置'; c.dataset.act='1'}
+  else if(syncState==='busy'){c.textContent='同步中…'; c.classList.add('busy'); c.dataset.act=''}
+  else if(syncState==='pending'){c.textContent='待同步'; c.classList.add('warn'); c.dataset.act=''}
+  else if(syncState==='error'){c.textContent='同步出错'; c.classList.add('err'); c.dataset.act='1'; c.title=errMsg}
+  else{c.textContent='已同步'+(lastSync?' '+lastSync.toTimeString().slice(0,5):''); c.classList.add('ok'); c.dataset.act=''}
+  $('#pendNote').style.display=(syncState==='pending'||syncState==='error')&&data?'block':'none';
+}
+function streak(){
+  if(!data)return 0;
+  let n=0,d=todayStr();
+  if(!dayActive(d))d=addDays(d,-1);
+  while(dayActive(d)){n++;d=addDays(d,-1)}
+  return n;
+}
+function renderToday(){
+  $('#dLabel').textContent=dLabelOf(curDate)+(curDate===todayStr()?' · 今天':'');
+  $('#dPrev').disabled=false; $('#dNext').disabled=curDate>=todayStr();
+  const r=data?ensureDay(curDate):{algo:false,bugu:false,project:false,hours:'',note:''};
+  document.querySelectorAll('.track').forEach(b=>b.classList.toggle('on',!!r[b.dataset.k]));
+  $('#hours').value=(r.hours==null?'':r.hours);
+  $('#note').value=r.note||'';
+}
+function renderWeek(){
+  const mon=mondayOf(todayStr());
+  const daysOfWeek=[]; for(let i=0;i<7;i++)daysOfWeek.push(addDays(mon,i));
+  const sum=daysOfWeek.reduce((a,d)=>a+((data&&data.days[d]&&data.days[d].hours)||0),0);
+  $('#weekSum').textContent=(Math.round(sum*10)/10);
+  $('#weekFill').style.width=Math.min(sum/10*100,100)+'%';
+  const tr=$('#trend'); tr.innerHTML='';
+  for(let i=3;i>=0;i--){
+    const m=addDays(mon,-7*i); let v=0;
+    for(let j=0;j<7;j++)v+=((data&&data.days[addDays(m,j)]&&data.days[addDays(m,j)].hours)||0);
+    const col=document.createElement('div'); col.className='tcol'+(i===0?' cur':'');
+    const val=(Math.round(v*10)/10)+'h';
+    const max=Math.max(10,...[0,1,2,3].map(k=>{const mm=addDays(mon,-7*k);let s=0;
+      for(let j=0;j<7;j++)s+=((data&&data.days[addDays(mm,j)]&&data.days[addDays(mm,j)].hours)||0);return s}));
+    col.innerHTML='<span class="tv">'+val+'</span><div class="tb" style="height:'
+      +Math.max(4,v/max*62)+'px"></div><span class="tl">'+(i===0?'本周':(parse(m).getMonth()+1)+'/'+parse(m).getDate())+'</span>';
+    tr.appendChild(col);
+  }
+}
+function curPlanWeek(){ // 0-based, 可为负（未开始）
+  return Math.floor((parse(todayStr())-parse(data.planStart||todayStr()))/86400000/7);
+}
+function renderPlan(){
+  const cw=Math.max(0,Math.min(31,curPlanWeek()));
+  if(viewWeek==null)viewWeek=cw;
+  const w=FLAT[viewWeek], no=viewWeek+1;
+  $('#pNo').textContent='第 '+no+' 周'+(viewWeek===cw?'（本周）':'')+'/32';
+  $('#pBlk').textContent=w.blk;
+  $('#pTitle').textContent=w.title;
+  const rec=(data.weeks||{})['W'+no]||{tasks:[]};
+  const box=$('#pTasks'); box.innerHTML='';
+  w.tasks.forEach((t,i)=>{
+    const done=!!(rec.tasks&&rec.tasks[i]);
+    const el=document.createElement('label');
+    el.className='ptask'+(done?' done':'');
+    el.innerHTML='<input type="checkbox" '+(done?'checked':'')+'><span>'+t+'</span>';
+    el.querySelector('input').addEventListener('change',ev=>{
+      data.weeks=data.weeks||{}; const r=data.weeks['W'+no]=data.weeks['W'+no]||{tasks:[]};
+      r.tasks[i]=ev.target.checked; scheduleSave(); renderPlan(); renderChip();
+    });
+    box.appendChild(el);
+  });
+  $('#pState').textContent=curPlanWeek()<0?'计划未开始':(curPlanWeek()>31?'32 周已全部走完':'本周应推进到第 '+(curPlanWeek()+1)+' 周');
+  $('#wPrev').disabled=viewWeek<=0; $('#wNext').disabled=viewWeek>=31;
+  let all=0,hit=0;
+  FLAT.forEach((_,i)=>{const r2=(data.weeks||{})['W'+(i+1)];const n=FLAT[i].tasks.length;
+    for(let j=0;j<n;j++){all++;if(r2&&r2.tasks&&r2.tasks[j])hit++}});
+  const pct=all?Math.round(hit/all*100):0;
+  $('#planFill').style.width=pct+'%';
+  $('#planNote').textContent='全计划完成率 '+pct+'%';
+}
+function renderMiles(){
+  $('#mAlgo').value=data.metrics.algoProblems||0;
+  $('#mBlog').value=data.metrics.blogs||0;
+  $('#mRef').value=data.metrics.refactors||0;
+  const box=$('#mList'); box.innerHTML='';
+  MILES.forEach(m=>{
+    const st=(data.milestones||{})[m.id]||{done:false,date:null};
+    const card=document.createElement('div');
+    card.className='mcard'+(st.done?' done':'');
+    const autos=m.auto(data).map(([a,b])=>{
+      const hit=a&&(/%/.test(a)?parseInt(a)>=100:(()=>{const[x,y]=a.split('/').map(Number);return y&&x>=y})());
+      return '<li'+(hit?' class="hit"':'')+'>'+(a?a+' · ':'')+b+'</li>';
+    }).join('');
+    card.innerHTML='<div class="mhead"><span class="mname">'+m.name+'</span>'
+      +'<button class="mdone'+(st.done?' on':'')+'">'+(st.done?'已完成':'标记完成')+'</button></div>'
+      +'<p class="mdue">'+m.due+(st.date?' · 达成于 '+st.date:'')+'</p>'
+      +'<ul class="mauto">'+autos+'</ul>';
+    card.querySelector('.mdone').addEventListener('click',()=>{
+      const r=(data.milestones=milestonesSafe())[m.id]=data.milestones[m.id]||{done:false,date:null};
+      r.done=!r.done; r.date=r.done?todayStr():null;
+      scheduleSave(); renderMiles(); renderChip();
+    });
+    box.appendChild(card);
+  });
+}
+function milestonesSafe(){ if(!data.milestones)data.milestones={}; return data.milestones }
+function renderAll(){ if(!data)return; renderChip(); renderToday(); renderWeek(); renderPlan(); renderMiles() }
+
+/* ================= 设置弹窗 ================= */
+function openSettings(){
+  $('#modal').classList.remove('hidden');
+  if(settings){
+    $('#sRepo').value=settings.repo||''; $('#sBranch').value=settings.branch||'main';
+    $('#sPath').value=settings.path||'data/checkin.json'; $('#sToken').value=settings.token||'';
+    $('#sStart').value=(data&&data.planStart)||settings.planStart||todayStr();
+  }else{
+    $('#sBranch').value='main'; $('#sPath').value='data/checkin.json'; $('#sStart').value=todayStr();
+  }
+  setStatus('','') ;
+}
+function setStatus(msg,cls){const el=$('#sStatus');el.textContent=msg;el.className='fstatus '+cls}
+function closeSettings(){$('#modal').classList.add('hidden')}
+async function saveSettings(){
+  const repo=normRepo($('#sRepo').value);
+  const branch=$('#sBranch').value.trim()||'main';
+  const path=$('#sPath').value.trim()||'data/checkin.json';
+  const token=$('#sToken').value.trim();
+  const ps=$('#sStart').value||todayStr();
+  if(!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repo))return setStatus('仓库名格式应为 用户名/仓库名','err');
+  if(!token)return setStatus('请填写 PAT（fine-grained，仅授数据仓库 Contents 读写）','err');
+  settings={repo,branch,path,token,planStart:ps};
+  setSync('busy'); setStatus('正在连接…','');
+  try{
+    const r=await fetch(apiUrl()+'?ref='+encodeURIComponent(branch),{headers:ghHeaders()});
+    if(r.status===404){
+      setStatus('仓库已连上，数据文件不存在，将自动创建 ✓','ok');
+      data=defaultData(ps); await doSave(); persist(); closeSettings(); renderAll(); return;
+    }
+    if(r.status===401||r.status===403)return setStatus('token 无效或权限不足（需 Contents: Read and write）','err');
+    if(!r.ok)return setStatus('GitHub API '+r.status+'，请检查仓库名','err');
+    const j=await r.json(); sha=j.sha;
+    data=JSON.parse(b64u(j.content));
+    setStatus('连接成功 ✓ 已载入 '+Object.keys(data.days||{}).length+' 天打卡','ok');
+    if(data.planStart!==ps){data.planStart=ps;scheduleSave()}
+    persist(); closeSettings(); renderAll();
+  }catch(e){ setStatus('连接失败：'+e.message,'err'); setSync('error') }
+}
+function persist(){ localStorage.setItem(SKEY,JSON.stringify(settings)) }
+
+/* ================= 事件绑定 ================= */
+document.querySelectorAll('.track').forEach(b=>b.addEventListener('click',()=>{
+  if(!data)return;
+  const r=ensureDay(curDate); r[b.dataset.k]=!r[b.dataset.k];
+  scheduleSave(); renderToday(); renderChip();
+}));
+$('#hours').addEventListener('change',e=>{ if(!data)return;
+  const v=e.target.value===''?null:Math.max(0,Math.min(16,parseFloat(e.target.value)));
+  ensureDay(curDate).hours=v; scheduleSave(); renderWeek(); renderChip() });
+$('#note').addEventListener('change',e=>{ if(!data)return;
+  ensureDay(curDate).note=e.target.value; scheduleSave(); renderChip() });
+$('#dPrev').addEventListener('click',()=>{curDate=addDays(curDate,-1);renderToday()});
+$('#dNext').addEventListener('click',()=>{curDate=addDays(curDate,1);renderToday()});
+$('#dToday').addEventListener('click',()=>{curDate=todayStr();renderToday()});
+$('#wPrev').addEventListener('click',()=>{if(viewWeek>0){viewWeek--;renderPlan()}});
+$('#wNext').addEventListener('click',()=>{if(viewWeek<31){viewWeek++;renderPlan()}});
+$('#wNow').addEventListener('click',()=>{if(data){viewWeek=null;renderPlan()}});
+[['mAlgo','algoProblems'],['mBlog','blogs'],['mRef','refactors']].forEach(([id,k])=>
+  $('#'+id).addEventListener('change',e=>{ if(!data)return;
+    data.metrics[k]=Math.max(0,parseInt(e.target.value)||0); scheduleSave(); renderMiles(); renderChip() }));
+$('#gearBtn').addEventListener('click',openSettings);
+$('#syncChip').addEventListener('click',()=>{ if(syncState==='error'||syncState==='unconfig')openSettings();
+  else if(syncState==='error')loadData() });
+$('#sSave').addEventListener('click',saveSettings);
+$('#sClear').addEventListener('click',()=>{ localStorage.removeItem(SKEY); localStorage.removeItem(PKEY);
+  settings=null; data=null; sha=null; setSync('unconfig'); closeSettings(); openSettings() });
+$('#modal').addEventListener('click',e=>{ if(e.target.id==='modal'&&data)closeSettings() });
+
+/* ================= 启动 ================= */
+(function init(){
+  try{ settings=JSON.parse(localStorage.getItem(SKEY)) }catch(e){ settings=null }
+  $('#sStart').value=todayStr();
+  if(settings&&settings.repo&&settings.token)loadData();
+  else{ setSync('unconfig'); openSettings() }
+})();
+</script>
+</body>
+</html>
