@@ -526,7 +526,7 @@ $('#syncChip').addEventListener('click',()=>{ if(syncState==='error'||syncState=
 $('#sSave').addEventListener('click',saveSettings);
 $('#sClear').addEventListener('click',()=>{ localStorage.removeItem(SKEY); localStorage.removeItem(PKEY);
   settings=null; data=null; sha=null; setSync('unconfig'); closeSettings(); openSettings() });
-$('#modal').addEventListener('click',e=>{ if(e.target.id==='modal'&&data)closeSettings() });
+$('#modal').addEventListener('click',e=>{ if(e.target.id==='modal')closeSettings() });
 
 /* ================= 启动 ================= */
 (function init(){
