@@ -162,7 +162,7 @@
   </section>
 
   <section class="card" id="sec-plan">
-    <p class="sec-title">备考计划 · 32 周</p>
+    <p class="sec-title">备考计划 · 38 周</p>
     <div class="phead"><span class="pno" id="pNo">—</span><span class="pblk" id="pBlk">—</span></div>
     <p class="ptitle" id="pTitle">—</p>
     <div id="pTasks"></div>
@@ -239,8 +239,15 @@ const PLAN=[
   ['分布式事务',['本地消息表与事务消息','TCC 与 SAGA 模式','分布式 ID 方案对比']],
   ['分布式理论',['CAP/BASE 与业务取舍','一致性哈希','写博客 ≥1 篇']],
   ['系统设计',['秒杀系统设计','短链系统设计','红包/Feed 流二选一']] ]},
+ {blk:'AI 应用开发（差异化加分项）',wks:[
+  ['AI 原理速成（一）',['LLM 原理：token/下一词预测/预训练→SFT→RLHF','Transformer 与注意力机制（能手画 QKV 流程）','参数量/上下文窗口/温度等核心概念','训练 vs 推理：KV Cache 为什么吃显存']],
+  ['AI 原理速成（二）',['微调家族：全参/LoRA/量化概念与适用场景','RAG 原理：embedding/切块策略/重排','Prompt 工程与幻觉治理（面试高频）','主流模型选型与 API 计费模式']],
+  ['RAG 项目（一）基础链路',['Spring AI 环境搭建 + ChatClient 流式输出（SSE）','文档解析切分（Tika）+ embedding 入 PGVector','基础问答链路跑通']],
+  ['RAG 项目（二）检索优化',['混合检索：向量 + 关键词','重排（rerank）模型接入','切块策略对比实验','答案引用溯源']],
+  ['RAG 项目（三）工程化',['tool calling 连数据库/接口（Agent 概念落地）','多轮会话与记忆管理','权限过滤与 Prompt 注入防护']],
+  ['RAG 项目（四）评测收尾',['评测集构建与效果量化（命中率/幻觉率）','缓存与 token 成本核算','写博客 ≥1 篇 + 简历项目叙事打磨']] ]},
  {blk:'冲刺期',wks:[
-  ['冲刺 · 模拟（一）',['mock 面试 ×2（可用 AI 当面试官）','错题题库重刷','JUC 专题口述复述']],
+  ['冲刺 · 模拟（一）',['mock 面试 ×2（可用 AI 当面试官）','AI 项目叙事 mock 1 次','错题题库重刷','JUC 专题口述复述']],
   ['冲刺 · 模拟（二）',['mock 面试 ×2','Redis/MQ 口述复述','简历迭代一版']],
   ['冲刺 · 模拟（三）',['mock 面试 ×2','系统设计专项练习','项目叙事打磨']],
   ['冲刺 · 模拟（四）',['mock 面试 ×2','薄弱专题回炉','简历定稿']],
@@ -255,11 +262,13 @@ const MILES=[
   auto:d=>[[ratioTxt(d,0,8),'JUC 周任务完成率'],[(d.metrics.blogs||0)+'/4','篇博客（目标≥4）']]},
  {id:'M2',name:'M2 · 备考完成＋简历 v1',due:'计划第 6 月末（W1–W24）',
   auto:d=>[[ratioTxt(d,0,24),'全部专题周任务完成率'],[(d.metrics.algoProblems||0)+'/150','算法题'],[(d.metrics.refactors||0)+'/2','公司改造落地项']]},
- {id:'M3',name:'M3 · 中厂 Offer 落地',due:'计划第 8–10 月 · 涨幅目标 ≥30%',
+ {id:'MAI',name:'M-AI · AI 项目完成',due:'计划第 8 月末（W25–W30）',
+  auto:d=>[[ratioTxt(d,24,30),'AI 专项周任务完成率'],[(d.metrics.blogs||0)+'/5','篇博客（累计，目标 ≥5）']]},
+ {id:'M3',name:'M3 · 中厂 Offer 落地',due:'计划第 10–12 月 · 涨幅目标 ≥30%',
   auto:()=>[['','offer 到手后手动标记并记日期']]},
- {id:'M4',name:'M4 · 中厂攒齐 4 类素材',due:'计划第 20 月末',
+ {id:'M4',name:'M4 · 中厂攒齐 4 类素材',due:'计划第 22 月末',
   auto:()=>[['','量化性能优化 / 故障排查 / 拆分重构 / 新中间件，四项齐备后标记']]},
- {id:'M5',name:'M5 · 内推投大厂',due:'计划第 22–32 月',
+ {id:'M5',name:'M5 · 内推投大厂',due:'计划第 24–34 月',
   auto:()=>[['','以中厂高级工程师身份内推，目标一线大厂 P6+ 或次一线']]}
 ];
 function ratioTxt(d,from,to){
@@ -403,10 +412,10 @@ function curPlanWeek(){ // 0-based, 可为负（未开始）
   return Math.floor((parse(todayStr())-parse(data.planStart||todayStr()))/86400000/7);
 }
 function renderPlan(){
-  const cw=Math.max(0,Math.min(31,curPlanWeek()));
+  const cw=Math.max(0,Math.min(FLAT.length-1,curPlanWeek()));
   if(viewWeek==null)viewWeek=cw;
   const w=FLAT[viewWeek], no=viewWeek+1;
-  $('#pNo').textContent='第 '+no+' 周'+(viewWeek===cw?'（本周）':'')+'/32';
+  $('#pNo').textContent='第 '+no+' 周'+(viewWeek===cw?'（本周）':'')+'/'+FLAT.length;
   $('#pBlk').textContent=w.blk;
   $('#pTitle').textContent=w.title;
   const rec=(data.weeks||{})['W'+no]||{tasks:[]};
@@ -422,8 +431,8 @@ function renderPlan(){
     });
     box.appendChild(el);
   });
-  $('#pState').textContent=curPlanWeek()<0?'计划未开始':(curPlanWeek()>31?'32 周已全部走完':'本周应推进到第 '+(curPlanWeek()+1)+' 周');
-  $('#wPrev').disabled=viewWeek<=0; $('#wNext').disabled=viewWeek>=31;
+  $('#pState').textContent=curPlanWeek()<0?'计划未开始':(curPlanWeek()>=FLAT.length?FLAT.length+' 周已全部走完':'本周应推进到第 '+(curPlanWeek()+1)+' 周');
+  $('#wPrev').disabled=viewWeek<=0; $('#wNext').disabled=viewWeek>=FLAT.length-1;
   let all=0,hit=0;
   FLAT.forEach((_,i)=>{const r2=(data.weeks||{})['W'+(i+1)];const n=FLAT[i].tasks.length;
     for(let j=0;j<n;j++){all++;if(r2&&r2.tasks&&r2.tasks[j])hit++}});
